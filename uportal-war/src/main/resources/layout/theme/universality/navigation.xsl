@@ -402,7 +402,7 @@
 	
 				<xsl:for-each select="tabChannel">
 					<!-- esup : add test hide from desktop -->
-					<xsl:if test="not(@hideFromDesktop='true')">
+					<xsl:if test="not(@hideFromDesktop='true') or upGroup:isUserDeepMemberOfGroupName($USER_ID, 'Fragment Owners')">
 						<!-- esup : end test hide from desktop -->
 			
 						<xsl:variable name="SUBNAV_POSITION"> <!-- Determine the position of the navigation option within the whole navigation 
@@ -449,7 +449,7 @@
             	
 		   <xsl:for-each	select="//navigation/tab[@activeTab='true']/tabChannel">
 			<!-- esup : add test hide from desktop -->
-			<xsl:if test="not(@hideFromDesktop='true')">
+			<xsl:if test="not(@hideFromDesktop='true') or upGroup:isUserDeepMemberOfGroupName($USER_ID, 'Fragment Owners')">
 				<!-- esup : end test hide from desktop -->
 				<xsl:variable name="SUBNAV_POSITION"> <!-- Determine the position of the navigation option within the whole navigation 
 						list and add css hooks for the first and last positions. -->

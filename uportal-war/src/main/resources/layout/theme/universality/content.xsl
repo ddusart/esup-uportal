@@ -58,7 +58,7 @@
    | This template renders the portlet containers: chrome and controls.
   -->
   <xsl:template match="channel|blocked-channel">
-    
+    <xsl:if test="not(parameter[@name='hideFromDesktop']/@value = 'true')  or upGroup:isUserDeepMemberOfGroupName($USER_ID, 'Fragment Owners') ">
     <xsl:variable name="PORTLET_LOCKED"> <!-- Test to determine if the portlet is locked in the layout. -->
       <xsl:choose> 
         <xsl:when test="@dlm:moveAllowed='false'">locked</xsl:when> 
