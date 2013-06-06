@@ -44,6 +44,7 @@ import org.jasig.portal.portlet.dao.IPortletDefinitionDao;
 import org.jasig.portal.portlet.dao.jpa.PortletDefinitionParameterImpl;
 import org.jasig.portal.portlet.dao.jpa.PortletPreferenceImpl;
 import org.jasig.portal.portlet.om.IPortletDefinition;
+import org.jasig.portal.portlet.om.IPortletDefinitionId;
 import org.jasig.portal.portlet.om.IPortletDefinitionParameter;
 import org.jasig.portal.portlet.om.IPortletDescriptorKey;
 import org.jasig.portal.portlet.om.IPortletPreference;
@@ -195,9 +196,11 @@ public class PortletDefinitionImporterExporter
             final IPortletDescriptorKey portletDescriptorKey = def.getPortletDescriptorKey();
             portletDescriptorKey.setPortletName(portletDescriptor.getPortletName());
             if (isFramework != null && isFramework) {
-                portletDescriptorKey.setFrameworkPortlet(isFramework);
+                portletDescriptorKey.setFrameworkPortlet(true);
+                portletDescriptorKey.setWebAppName(null);
             }
             else {
+                portletDescriptorKey.setFrameworkPortlet(false);
                 portletDescriptorKey.setWebAppName(portletDescriptor.getWebAppName());
             }
         }
@@ -285,13 +288,14 @@ public class PortletDefinitionImporterExporter
      */
     @Override
     public IPortletDefinition savePortletDefinition(IPortletDefinition definition, IPerson publisher, List<PortletCategory> categories, List<IGroupMember> groupMembers) {
-        boolean newChannel = (definition.getPortletDefinitionId() == null);
+        final IPortletDefinitionId portletDefinitionId = definition.getPortletDefinitionId();
+        boolean newChannel = (portletDefinitionId == null);
 
         // save the channel
         definition = portletDefinitionDao.updatePortletDefinition(definition);
         definition = portletDefinitionDao.getPortletDefinitionByFname(definition.getFName());
 
-        final String defId = definition.getPortletDefinitionId().getStringId();
+        final String defId = portletDefinitionId.getStringId();
         final IEntity portletDefEntity = GroupService.getEntity(defId, IPortletDefinition.class);
 
         //Sync on groups during update. This really should be a portal wide thread-safety check or
@@ -401,8 +405,6 @@ public class PortletDefinitionImporterExporter
     protected ExternalPortletDefinition convert(IPortletDefinition def) {
         ExternalPortletDefinition rep = new ExternalPortletDefinition();
          
-        rep.setVersion("4.0");
-         
         rep.setFname(def.getFName());
         rep.setDesc(def.getDescription());
         rep.setName(def.getName());
@@ -435,6 +437,7 @@ public class PortletDefinitionImporterExporter
             externalPortletParameter.setValue(param.getValue());
             parameterList.add(externalPortletParameter);
         }
+        Collections.sort(parameterList, ExternalPortletParameterNameComparator.INSTANCE);
 
          
         final List<ExternalPortletPreference> portletPreferenceList = rep.getPortletPreferences();
@@ -445,10 +448,11 @@ public class PortletDefinitionImporterExporter
              
             final List<String> value = externalPortletPreference.getValues();
             value.addAll(Arrays.asList(pref.getValues()));
+            //no sorting of preference values, order is specified by the portlet
              
             portletPreferenceList.add(externalPortletPreference);
         }
-         
+        Collections.sort(portletPreferenceList, ExternalPortletPreferenceNameComparator.INSTANCE);
          
         final List<String> categoryList = rep.getCategories();
         final IGroupMember gm = GroupService.getGroupMember(def.getPortletDefinitionId().getStringId(), IPortletDefinition.class);
@@ -458,6 +462,7 @@ public class PortletDefinitionImporterExporter
             IEntityGroup category = categories.next();
             categoryList.add(category.getName());
         }
+        Collections.sort(categoryList);
         
          
          
@@ -483,6 +488,9 @@ public class PortletDefinitionImporterExporter
                 userList.add(member.getKey());
             }
         }
+        
+        Collections.sort(groupList);
+        Collections.sort(userList);
          
         return rep;
     }

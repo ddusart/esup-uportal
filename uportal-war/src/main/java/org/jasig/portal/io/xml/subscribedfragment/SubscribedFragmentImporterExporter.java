@@ -162,7 +162,6 @@ public class SubscribedFragmentImporterExporter extends
     private ExternalSubscribedFragments exportInternal(final IPerson person) {
         final ExternalSubscribedFragments data = new ExternalSubscribedFragments();
 	    data.setUsername(person.getUserName());
-	    data.setVersion(SubscribedFragmentPortalDataType.IMPORT_40_DATA_KEY.getVersion());
 	    
 	    final List<SubscribedFragmentType> subscribedFragments = data.getSubscribedFragments();
 	    
@@ -177,6 +176,8 @@ public class SubscribedFragmentImporterExporter extends
         if (subscribedFragments.isEmpty()) {
 	        return null;
 	    }
+        
+        Collections.sort(subscribedFragments, SubscribedFragmentTypeComparator.INSTANCE);
 	    
 	    return data;
     }

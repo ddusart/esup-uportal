@@ -172,8 +172,7 @@ public class PermissionOwnerImporterExporter extends
             
             externalActivities.add(externalActivity);
         }
-        
-        externalPermissionOwner.setVersion("4.0");
+        Collections.sort(externalActivities, ExternalActivityFnameComparator.INSTANCE);
         
         return externalPermissionOwner;
     }

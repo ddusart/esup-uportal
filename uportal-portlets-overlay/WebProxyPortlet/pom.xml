@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.jasig.portal.portlets-overlay</groupId>
         <artifactId>uportal-portlets-overlay</artifactId>
-        <version>4.0.5</version>
+        <version>4.0.11</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
@@ -33,12 +33,21 @@
     
 
     <build>
+        <filters>
+            <filter>../../${filters.file}</filter>
+        </filters>
+        <resources>
+            <resource>
+                <filtering>true</filtering>
+                <directory>src/main/resources</directory>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <artifactId>maven-war-plugin</artifactId>
                 <configuration>
                     <filters>
-                        <filter>${basedir}/../../uportal-war/target/classes/properties/rdbm.properties</filter>
+                        <filter>${basedir}/../../${filters.file}</filter>
                     </filters>
                     <dependentWarExcludes>
                         WEB-INF/lib/hsqldb-*.jar

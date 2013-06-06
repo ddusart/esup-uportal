@@ -19,6 +19,7 @@
 
 package org.jasig.portal.events.aggr;
 
+import java.io.Serializable;
 import java.util.Set;
 
 import org.jasig.portal.utils.IncludeExcludeUtils;
@@ -29,7 +30,7 @@ import org.jasig.portal.utils.IncludeExcludeUtils;
  * @author Eric Dalquist
  * @version $Revision$
  */
-public interface BaseAggregatedDimensionConfig<D> {
+public interface BaseAggregatedDimensionConfig<D> extends Serializable {
 
     /**
      * @return The aggregator the includes/excludes are for
@@ -42,9 +43,13 @@ public interface BaseAggregatedDimensionConfig<D> {
     long getVersion();
     
     /**
+     * If no dimensions are included or excluded false will be returned. If at least one
+     * dimension is in the {@link #getIncluded()} or {@link #getExcluded()} sets then
+     * {@link IncludeExcludeUtils#included(Object, java.util.Collection, java.util.Collection)}
+     * is used.
+     * 
      * @param dimension The dimension to test
      * @return true if it is included
-     * @see IncludeExcludeUtils#included(Object, java.util.Collection, java.util.Collection)
      */
     boolean isIncluded(D dimension);
 

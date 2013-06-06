@@ -205,12 +205,12 @@ public class RDBMDistributedLayoutStore extends RDBMUserLayoutStore {
         this.fragmentNodeInfoCache = fragmentNodeInfoCache;
     }
 
-    @Value("${org.jasig.portal.io.layout.errorOnMissingPortlet}")
+    @Value("${org.jasig.portal.io.layout.errorOnMissingPortlet:true}")
     public void setErrorOnMissingPortlet(boolean errorOnMissingPortlet) {
         this.errorOnMissingPortlet = errorOnMissingPortlet;
     }
 
-    @Value("${org.jasig.portal.io.layout.errorOnMissingUser}")
+    @Value("${org.jasig.portal.io.layout.errorOnMissingUser:true}")
     public void setErrorOnMissingUser(boolean errorOnMissingUser) {
         this.errorOnMissingUser = errorOnMissingUser;
     }
@@ -701,17 +701,14 @@ public class RDBMDistributedLayoutStore extends RDBMUserLayoutStore {
     @SuppressWarnings("unchecked")
     @Transactional
     public void importLayout(org.dom4j.Element layout) {
-//    	try {
-//    	OutputFormat format = OutputFormat.createPrettyPrint();
-//        XMLWriter writer = new XMLWriter( System.out, format );
-//        writer.write( layout );
-//        writer.close();
-//    	}catch (Exception e) {
-//    		e.printStackTrace();
-//    	}
-        
         if (layout.getNamespaceForPrefix("dlm") == null) {
             layout.add(new Namespace("dlm", "http://www.uportal.org/layout/dlm"));
+        }
+
+        //Remove comments from the DOM they break import
+        final List<org.dom4j.Node> comments = layout.selectNodes("//comment()");
+        for (final org.dom4j.Node comment : comments) {
+            comment.detach();
         }
         
         //Get a ref to the prefs element and then remove it from the layout
@@ -2124,8 +2121,8 @@ public class RDBMDistributedLayoutStore extends RDBMUserLayoutStore {
         }
 
         @Override
-        public void setPortletPreferences(List<IPortletPreference> portletPreferences) {
-
+        public boolean setPortletPreferences(List<IPortletPreference> portletPreferences) {
+            return false;
         }
 
         @Override

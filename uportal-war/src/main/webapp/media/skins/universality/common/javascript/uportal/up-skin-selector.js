@@ -125,12 +125,12 @@ var up = up || {};
         skinRows = fluid.transform(that.state.model, function (obj, index) {
             return {
                 ID: "listItem-row:",
+                decorators: [
+                    { type: "addClass", classes: obj.key === that.options.currentSkin ? that.options.activeSkin : "" }
+                ],
                 children: [
                     {
-                        ID: "skinWrapper",
-                        decorators: [
-                            { type: "addClass", classes: obj.key === that.options.currentSkin ? that.options.activeSkin : "" }
-                        ]
+                        ID: "skinWrapper"
                     },
                     {
                         ID: "skinLink",
@@ -255,9 +255,6 @@ var up = up || {};
                 doRender(that);
             },
             error: function (XMLHttpRequest, textStatus, errorThrown) {
-                if (console) {
-                    console.log("AJAX Failure: ", XMLHttpRequest, textStatus, errorThrown);
-                }
             }
         });
     };//end:function.

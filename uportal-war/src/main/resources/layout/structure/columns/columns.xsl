@@ -232,6 +232,11 @@
                   <xsl:value-of select="parameter[@name='removeFromLayout']/@value"/>
                 </xsl:attribute>
               </xsl:when>
+              <xsl:when test="parameter[@name='hideFromDesktop']">
+                <xsl:attribute name="hideFromDesktop">
+                  <xsl:value-of select="parameter[@name='hideFromDesktop']/@value"/>
+                </xsl:attribute>
+              </xsl:when>
             </xsl:choose>
           </tabChannel>
         </xsl:for-each>
@@ -284,7 +289,7 @@
 </xsl:template>
 
 <xsl:template match="channel">
-  <!-- esup : add test hide from desktop-->
+ <!-- esup : add test hide from desktop-->
 <xsl:if test="not(parameter[@name='hideFromDesktop']/@value = 'true')">
 <!-- esup : end add test hide from desktop-->
   <xsl:choose>

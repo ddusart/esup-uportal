@@ -33,10 +33,11 @@ import javax.servlet.http.HttpSession;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.jasig.portal.PortalException;
-import org.jasig.portal.events.IPortalEventFactory;
+import org.jasig.portal.events.IPortalAuthEventFactory;
 import org.jasig.portal.security.IPerson;
 import org.jasig.portal.security.IPersonManager;
 import org.jasig.portal.security.ISecurityContext;
+import org.jasig.portal.security.IdentitySwapperManager;
 import org.jasig.portal.utils.ResourceLoader;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,8 +59,14 @@ public class LogoutController implements InitializingBean {
     private static final Log log = LogFactory.getLog(LogoutController.class);
 
     private Map<String, String> redirectMap;
-    private IPortalEventFactory portalEventFactory;
+    private IPortalAuthEventFactory portalEventFactory;
     private IPersonManager personManager;
+    private IdentitySwapperManager identitySwapperManager;
+    
+    @Autowired
+    public void setIdentitySwapperManager(IdentitySwapperManager identitySwapperManager) {
+        this.identitySwapperManager = identitySwapperManager;
+    }
 
     @Autowired
     public void setPersonManager(IPersonManager personManager) {
@@ -67,7 +74,7 @@ public class LogoutController implements InitializingBean {
     }
 
     @Autowired
-    public void setPortalEventFactory(IPortalEventFactory portalEventFactory) {
+    public void setPortalEventFactory(IPortalAuthEventFactory portalEventFactory) {
         this.portalEventFactory = portalEventFactory;
     }
 
@@ -130,7 +137,7 @@ public class LogoutController implements InitializingBean {
                 log.error("Exception recording logout " + "associated with request " + request, e);
             }
 
-            final String originalUid = (String) session.getAttribute(LoginController.SWAP_ORIGINAL_UID);
+            final String originalUid = this.identitySwapperManager.getOriginalUsername(session);
             //Logging out from a swapped user, just redirect to the Login servlet
             if (originalUid != null) {
                 redirect = request.getContextPath() + "/Login";

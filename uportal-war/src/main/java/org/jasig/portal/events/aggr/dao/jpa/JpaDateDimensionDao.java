@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
+import javax.persistence.FlushModeType;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
@@ -33,12 +33,12 @@ import javax.persistence.criteria.Subquery;
 
 import org.jasig.portal.events.aggr.DateDimension;
 import org.jasig.portal.events.aggr.dao.DateDimensionDao;
-import org.jasig.portal.jpa.BaseJpaDao;
+import org.jasig.portal.jpa.BaseAggrEventsJpaDao;
+import org.jasig.portal.jpa.OpenEntityManager;
 import org.joda.time.DateMidnight;
 import org.joda.time.LocalDate;
 import org.springframework.dao.support.DataAccessUtils;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.google.common.base.Function;
 
@@ -47,26 +47,15 @@ import com.google.common.base.Function;
  * @version $Revision$
  */
 @Repository
-public class JpaDateDimensionDao extends BaseJpaDao implements DateDimensionDao {
+public class JpaDateDimensionDao extends BaseAggrEventsJpaDao implements DateDimensionDao {
     private CriteriaQuery<DateDimensionImpl> findAllDateDimensionsQuery;
     private CriteriaQuery<DateDimensionImpl> findAllDateDimensionsBetweenQuery;
-    private CriteriaQuery<DateDimensionImpl> findDateDimensionByDateQuery;
+    private CriteriaQuery<DateDimensionImpl> findAllDateDimensionsWithoutTermQuery;
     private CriteriaQuery<DateDimensionImpl> findNewestDateDimensionQuery;
     private CriteriaQuery<DateDimensionImpl> findOldestDateDimensionQuery;
     private ParameterExpression<LocalDate> dateTimeParameter;
     private ParameterExpression<LocalDate> endDateTimeParameter;
     
-    private EntityManager entityManager;
-
-    @PersistenceContext(unitName = "uPortalAggrEventsPersistence")
-    public final void setEntityManager(EntityManager entityManager) {
-        this.entityManager = entityManager;
-    }
-
-    @Override
-    protected EntityManager getEntityManager() {
-        return this.entityManager;
-    }
     
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -101,15 +90,13 @@ public class JpaDateDimensionDao extends BaseJpaDao implements DateDimensionDao 
             }
         });
         
-        this.findDateDimensionByDateQuery = this.createCriteriaQuery(new Function<CriteriaBuilder, CriteriaQuery<DateDimensionImpl>>() {
+        this.findAllDateDimensionsWithoutTermQuery = this.createCriteriaQuery(new Function<CriteriaBuilder, CriteriaQuery<DateDimensionImpl>>() {
             @Override
             public CriteriaQuery<DateDimensionImpl> apply(CriteriaBuilder cb) {
                 final CriteriaQuery<DateDimensionImpl> criteriaQuery = cb.createQuery(DateDimensionImpl.class);
                 final Root<DateDimensionImpl> dimensionRoot = criteriaQuery.from(DateDimensionImpl.class);
                 criteriaQuery.select(dimensionRoot);
-                criteriaQuery.where(
-                    cb.equal(dimensionRoot.get(DateDimensionImpl_.date), dateTimeParameter)
-                );
+                criteriaQuery.where(cb.isNull(dimensionRoot.get(DateDimensionImpl_.term)));
                 
                 return criteriaQuery;
             }
@@ -173,18 +160,25 @@ public class JpaDateDimensionDao extends BaseJpaDao implements DateDimensionDao 
     }
     
     @Override
-    @Transactional("aggrEvents")
+    @AggrEventsTransactional
     public DateDimension createDateDimension(DateMidnight date, int quarter, String term) {
         final DateDimension dateDimension = new DateDimensionImpl(date, quarter, term);
         
-        this.entityManager.persist(dateDimension);
+        this.getEntityManager().persist(dateDimension);
         
         return dateDimension;
+    }
+    
+    @Override
+    @AggrEventsTransactional
+    public void updateDateDimension(DateDimension dateDimension) {
+        this.getEntityManager().persist(dateDimension);
     }
 
     @Override
     public List<DateDimension> getDateDimensions() {
         final TypedQuery<DateDimensionImpl> query = this.createCachedQuery(this.findAllDateDimensionsQuery);
+        query.setFlushMode(FlushModeType.COMMIT);
         
         final List<DateDimensionImpl> portletDefinitions = query.getResultList();
         return new ArrayList<DateDimension>(portletDefinitions);
@@ -193,6 +187,7 @@ public class JpaDateDimensionDao extends BaseJpaDao implements DateDimensionDao 
     @Override
     public List<DateDimension> getDateDimensionsBetween(DateMidnight start, DateMidnight end) {
         final TypedQuery<DateDimensionImpl> query = this.createCachedQuery(this.findAllDateDimensionsBetweenQuery);
+        query.setFlushMode(FlushModeType.COMMIT);
         query.setParameter(this.dateTimeParameter, start.toLocalDate());
         query.setParameter(this.endDateTimeParameter, end.toLocalDate());
         
@@ -201,18 +196,32 @@ public class JpaDateDimensionDao extends BaseJpaDao implements DateDimensionDao 
     }
     
     @Override
-    public DateDimension getDateDimensionById(long key) {
-        final DateDimension dateDimension = this.entityManager.find(DateDimensionImpl.class, key);
+    public List<DateDimension> getDateDimensionsWithoutTerm() {
+        final TypedQuery<DateDimensionImpl> query = this.createQuery(this.findAllDateDimensionsWithoutTermQuery);
+        query.setFlushMode(FlushModeType.COMMIT);
         
-        return dateDimension;
+        final List<DateDimensionImpl> portletDefinitions = query.getResultList();
+        return new ArrayList<DateDimension>(portletDefinitions);
     }
 
     @Override
+    public DateDimension getDateDimensionById(long key) {
+        final EntityManager entityManager = this.getEntityManager();
+        final FlushModeType flushMode = entityManager.getFlushMode();
+        try {
+            entityManager.setFlushMode(FlushModeType.COMMIT);
+            return entityManager.find(DateDimensionImpl.class, key);
+        }
+        finally {
+            entityManager.setFlushMode(flushMode);
+        }
+    }
+
+    @OpenEntityManager(unitName = PERSISTENCE_UNIT_NAME)
+    @Override
     public DateDimension getDateDimensionByDate(DateMidnight date) {
-        final TypedQuery<DateDimensionImpl> query = this.createCachedQuery(this.findDateDimensionByDateQuery);
-        query.setParameter(this.dateTimeParameter, date.toLocalDate());
-        
-        final List<DateDimensionImpl> portletDefinitions = query.getResultList();
-        return DataAccessUtils.uniqueResult(portletDefinitions);
+        final NaturalIdQuery<DateDimensionImpl> query = this.createNaturalIdQuery(DateDimensionImpl.class);
+        query.using(DateDimensionImpl_.date, date.toLocalDate());
+        return query.load();
     }
 }

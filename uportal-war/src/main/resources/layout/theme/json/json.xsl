@@ -75,7 +75,7 @@
     xmlns:url="https://source.jasig.org/schemas/uportal/layout/portal-url"
     xmlns:upElemTitle="http://xml.apache.org/xalan/java/org.jasig.portal.security.xslt.XalanLayoutElementTitleHelper"
     xsi:schemaLocation="
-            https://source.jasig.org/schemas/uportal/layout/portal-url ../../../xsd/layout/portal-url-4.0.xsd"
+            https://source.jasig.org/schemas/uportal/layout/portal-url https://source.jasig.org/schemas/uportal/layout/portal-url-4.0.xsd"
     exclude-result-prefixes="url upAuth upGroup upMsg upElemTitle" 
     version="1.0">
 
@@ -203,7 +203,7 @@
                             <xsl:when test="parameter[@name='mobileIconUrl'] and parameter[@name='mobileIconUrl']/@value != ''">
                                 <xsl:value-of select="parameter[@name='mobileIconUrl']/@value"/>
                             </xsl:when>
-                            <xsl:otherwise><xsl:value-of select="$CONTEXT_PATH"/>/media/skins/icons/default.png</xsl:otherwise>
+                            <xsl:otherwise><xsl:value-of select="$CONTEXT_PATH"/>/media/skins/icons/mobile/default.png</xsl:otherwise>
                         </xsl:choose>
                     </xsl:variable>
                     {

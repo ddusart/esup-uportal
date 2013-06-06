@@ -64,10 +64,11 @@
     xmlns:upAuth="http://xml.apache.org/xalan/java/org.jasig.portal.security.xslt.XalanAuthorizationHelper"
     xmlns:upGroup="http://xml.apache.org/xalan/java/org.jasig.portal.security.xslt.XalanGroupMembershipHelper"
     xmlns:upMsg="http://xml.apache.org/xalan/java/org.jasig.portal.security.xslt.XalanMessageHelper"
+    xmlns:upElemTitle="http://xml.apache.org/xalan/java/org.jasig.portal.security.xslt.XalanLayoutElementTitleHelper"
     xmlns:url="https://source.jasig.org/schemas/uportal/layout/portal-url"
     xsi:schemaLocation="
             https://source.jasig.org/schemas/uportal/layout/portal-url https://source.jasig.org/schemas/uportal/layout/portal-url-4.0.xsd"
-    exclude-result-prefixes="url upAuth upGroup upMsg" 
+    exclude-result-prefixes="url upAuth upGroup upMsg upElemTitle dlm xsi" 
     version="1.0">
       
   <!-- ============================= -->
@@ -171,7 +172,7 @@
    | GREEN
    | Locatlization Settings can be used to change the localization of the theme.
   -->
-	<xsl:param name="USER_LANG">en</xsl:param> <!-- Sets the default user language. -->
+	<xsl:param name="USER_LANG">fr</xsl:param> <!-- Sets the default user language. -->
   
   
   <!-- ****** PORTAL SETTINGS ****** -->
@@ -522,22 +523,12 @@
   <xsl:template name="header.focused.block">
     <!-- Portal Page Bar -->
     <xsl:call-template name="portal.page.bar"/>
-    <!-- Portal Page Bar -->
     
     <!-- Skip Navigation -->
-    <div id="portalSkipNav">
-      <a href="#mainNavigation" title="{upMsg:getMessage('skip.to.page.navigation', $USER_LANG)}" id="skipToNav">
-        <xsl:value-of select="upMsg:getMessage('skip.to.page.navigation', $USER_LANG)"/>
-      </a>
-      <a href="#startContent" title="{upMsg:getMessage('skip.to.page.content', $USER_LANG)}" id="skipToContent">
-        <xsl:value-of select="upMsg:getMessage('skip.to.page.content', $USER_LANG)"/>
-      </a>
-    </div>
-    <!-- Skip Navigation -->
+    <xsl:call-template name="skip.nav"/>
     
     <!-- Logo -->
     <xsl:call-template name="logo"/>
-    <!-- Logo -->
     
     <!-- SAMPLE:
     <div id="portalHeaderFocusedBlock">
@@ -871,7 +862,59 @@
 
     <!-- Site Map -->
     <div id="portalPageFooterNav">
-        <xsl:copy-of select="//channel/parameter[@name = 'role' and @value = 'footerNav']/parent::*"/>
+        <a name="sitemap"></a>
+        <!-- 
+         | Tab layout:
+         | Tab1          Tab2          Tab3          Tab4         (<== limited to $TAB_WRAP_COUNT)
+         |   -portlet1     -portlet5     -portlet7     -portlet8
+         |   -portlet2     -portlet6                   -portlet9
+         |   -portlet3                                 -portlet10
+         |   -portlet4
+         |
+         | Tab5 ....
+         +-->
+
+        <xsl:variable name="TAB_WRAP_COUNT" select="4" />
+    
+        <!-- Here we can't use muenchian grouping, because due to some bug key ignores "match" argument, hence calculations using position() are unusable -->
+        <xsl:for-each select="//navigation/tab">
+          <xsl:if test="(position() mod $TAB_WRAP_COUNT)=1">
+            <xsl:variable name="ROW_NUM" select="ceiling(position() div $TAB_WRAP_COUNT)" />
+            <div class="fl-container-flex fl-col-flex4">
+              <xsl:for-each select="//navigation/tab">
+                <xsl:if test="ceiling(position() div $TAB_WRAP_COUNT) = $ROW_NUM">
+                    <xsl:variable name="tabLinkUrl">
+                      <xsl:call-template name="portalUrl">
+                        <xsl:with-param name="url">
+                          <url:portal-url>
+                            <url:layoutId><xsl:value-of select="@ID" /></url:layoutId>
+                          </url:portal-url>
+                        </xsl:with-param>
+                      </xsl:call-template>
+                    </xsl:variable>
+                    <div class="fl-col">
+                      <div><a href="{$tabLinkUrl}"><xsl:value-of select="upElemTitle:getTitle(@ID, $USER_LANG, @name)"/></a></div>
+                      <ul>
+                          <xsl:for-each select="tabChannel">
+                              <xsl:variable name="portletLinkUrl">
+                              <xsl:call-template name="portalUrl">
+                                <xsl:with-param name="url">
+                                  <url:portal-url>
+                                    <url:layoutId><xsl:value-of select="@ID" /></url:layoutId>
+                                    <url:portlet-url state="MAXIMIZED" />
+                                  </url:portal-url>
+                                </xsl:with-param>
+                              </xsl:call-template>
+                            </xsl:variable>
+                            <li><a href="{$portletLinkUrl}"><xsl:value-of select="@name" /></a></li>
+                        </xsl:for-each>                      
+                      </ul>
+                    </div>
+                </xsl:if>
+              </xsl:for-each>
+            </div>
+          </xsl:if>
+        </xsl:for-each>
     </div> 
 
     <xsl:if test="$INSTITUTION='uportal' or $INSTITUTION='coal' or $INSTITUTION='ivy' or $INSTITUTION='hc'">
@@ -908,11 +951,11 @@
 	      <!-- uPortal Product Version -->
 	      <div id="portalProductAndVersion">
 	        <p>
-                <a href="http://www.jasig.org/uportal" title="Powered by uPortal ${UP_VERSION}" target="_blank">Powered by uPortal <xsl:value-of select="$UP_VERSION"/></a>, an open-source project by <a href="http://www.jasig.org" title="Jasig.org - Open for Higher Education">Jasig</a> - <span><xsl:value-of select="$SERVER_NAME"/></span>
+                <a href="http://www.jasig.org/uportal" title="{upMsg:getMessage('footer.uportal.powered.by', $USER_LANG)} {$UP_VERSION}" target="_blank"><xsl:value-of select="upMsg:getMessage('footer.uportal.powered.by', $USER_LANG)"/><xsl:value-of select="$UP_VERSION"/></a><xsl:value-of select="upMsg:getMessage('footer.open.source', $USER_LANG)"/><a href="http://www.jasig.org" title="Jasig.org - Open for Higher Education">Jasig</a> - <span><xsl:value-of select="$SERVER_NAME"/></span>
                 <xsl:if test="$AUTHENTICATED='true'">
                     <br/>
                     <chunk-point/> <!-- Performance Optimization, see ChunkPointPlaceholderEventSource -->
-                    <span>Session Key: </span><span><xsl:value-of select="$STATS_SESSION_ID"/></span>
+                    <span><xsl:value-of select="upMsg:getMessage('footer.session.key', $USER_LANG)"/></span><span><xsl:value-of select="$STATS_SESSION_ID"/></span>
                     <chunk-point/> <!-- Performance Optimization, see ChunkPointPlaceholderEventSource -->
                 </xsl:if>
             </p>
@@ -921,12 +964,12 @@
       
 	      <!-- Copyright -->
 	      <div id="portalCopyright">
-	        <p><a href="http://www.jasig.org/uportal/about/license" title="uPortal" target="_blank">uPortal</a> is licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0" title="Apache License, Version 2.0" target="_blank">Apache License, Version 2.0</a> as approved by the Open Source Initiative (OSI), an <a href="http://www.opensource.org/docs/osd" title="OSI-certified" target="_blank">OSI-certified</a> ("open") and <a href="http://www.gnu.org/licenses/license-list.html" title="Gnu/FSF-recognized" target="_blank">Gnu/FSF-recognized</a> ("free") license.</p>
+	        <p><a href="http://www.jasig.org/uportal/about/license" title="uPortal" target="_blank">uPortal </a><xsl:value-of select="upMsg:getMessage('footer.uportal.licensed', $USER_LANG)"/><a href="http://www.apache.org/licenses/LICENSE-2.0" title="Apache License, Version 2.0" target="_blank">Apache License, Version 2.0 </a> <xsl:value-of select="upMsg:getMessage('footer.license.approvment', $USER_LANG)"/><a href="http://www.opensource.org/docs/osd" title="{upMsg:getMessage('footer.osi', $USER_LANG)}" target="_blank"><xsl:value-of select="upMsg:getMessage('footer.osi', $USER_LANG)"/> </a><xsl:value-of select="upMsg:getMessage('footer.open.license', $USER_LANG)"/><a href="http://www.gnu.org/licenses/license-list.html" title="{upMsg:getMessage('footer.gnu', $USER_LANG)}" target="_blank"><xsl:value-of select="upMsg:getMessage('footer.gnu', $USER_LANG)"/> </a><xsl:value-of select="upMsg:getMessage('footer.free.license', $USER_LANG)"/></p>
 	      </div>
       
 	      <!-- Icon Set Attribution -->
 	      <div id="silkIconsAttribution">
-	        <p><a href="http://www.famfamfam.com/lab/icons/silk/" title="Silk icon set 1.3" target="_blank">Silk icon set 1.3</a> courtesy of Mark James.</p>
+	        <p><a href="http://www.famfamfam.com/lab/icons/silk/" title="{upMsg:getMessage('footer.icon.set', $USER_LANG)}" target="_blank"><xsl:value-of select="upMsg:getMessage('footer.icon.set', $USER_LANG)"/> </a><xsl:value-of select="upMsg:getMessage('footer.icon.set.author', $USER_LANG)"/></p>
 	        <!-- Silk icon set 1.3 by Mark James [ http://www.famfamfam.com/lab/icons/silk/ ], which is licensed under a Creative Commons Attribution 2.5 License. [ http://creativecommons.org/licenses/by/2.5/ ].  This icon set is free for use under the CCA 2.5 license, so long as there is a link back to the author's site.  If the Silk icons are used, this reference must be present in the markup, though not necessarily visible in the rendered page.  If you don't want the statement to visibly render in the page, use CSS to make it invisible. -->
 	      </div>
     	</div>

@@ -19,12 +19,38 @@
 
 package org.jasig.portal.portlet.container.services;
 
+import javax.portlet.ActionRequest;
+import javax.portlet.ActionResponse;
+import javax.portlet.Event;
+import javax.portlet.EventRequest;
+import javax.portlet.EventResponse;
 import javax.portlet.PortletContext;
+import javax.portlet.PortletPreferences;
 import javax.portlet.PortletSession;
+import javax.portlet.RenderRequest;
+import javax.portlet.RenderResponse;
+import javax.portlet.ResourceRequest;
+import javax.portlet.ResourceResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
+import org.apache.pluto.container.PortletActionResponseContext;
+import org.apache.pluto.container.PortletEnvironmentService;
+import org.apache.pluto.container.PortletEventResponseContext;
+import org.apache.pluto.container.PortletMimeResponseContext;
+import org.apache.pluto.container.PortletRenderResponseContext;
+import org.apache.pluto.container.PortletRequestContext;
+import org.apache.pluto.container.PortletResourceRequestContext;
+import org.apache.pluto.container.PortletResourceResponseContext;
 import org.apache.pluto.container.PortletWindow;
+import org.apache.pluto.container.impl.ActionRequestImpl;
+import org.apache.pluto.container.impl.ActionResponseImpl;
+import org.apache.pluto.container.impl.EventRequestImpl;
+import org.apache.pluto.container.impl.EventResponseImpl;
+import org.apache.pluto.container.impl.RenderRequestImpl;
+import org.apache.pluto.container.impl.RenderResponseImpl;
+import org.apache.pluto.container.impl.ResourceRequestImpl;
+import org.apache.pluto.container.impl.ResourceResponseImpl;
 import org.jasig.portal.portlet.om.IPortletEntity;
 import org.jasig.portal.portlet.om.IPortletEntityId;
 import org.jasig.portal.portlet.om.IPortletWindow;
@@ -41,40 +67,25 @@ import org.springframework.stereotype.Service;
  * @version $Revision$
  */
 @Service("portletEnvironmentService")
-public class PortletEnvironmentServiceImpl extends org.apache.pluto.container.impl.PortletEnvironmentServiceImpl {
+public class PortletEnvironmentServiceImpl implements PortletEnvironmentService {
+    private PortletPreferencesFactory portletPreferencesFactory;
     private IPortletWindowRegistry portletWindowRegistry;
     private IPortalRequestUtils portalRequestUtils;
-    /**
-     * @return the portletWindowRegistry
-     */
-    public IPortletWindowRegistry getPortletWindowRegistry() {
-        return portletWindowRegistry;
+
+    @Autowired
+    public void setPortletPreferencesFactory(PortletPreferencesFactory portletPreferencesFactory) {
+        this.portletPreferencesFactory = portletPreferencesFactory;
     }
-    /**
-     * @param portletWindowRegistry the portletWindowRegistry to set
-     */
     @Autowired
     public void setPortletWindowRegistry(IPortletWindowRegistry portletWindowRegistry) {
         this.portletWindowRegistry = portletWindowRegistry;
     }
-    /**
-	 * @return the portalRequestUtils
-	 */
-	public IPortalRequestUtils getPortalRequestUtils() {
-		return portalRequestUtils;
-	}
-	/**
-	 * @param portalRequestUtils the portalRequestUtils to set
-	 */
-	@Autowired
+    @Autowired
 	public void setPortalRequestUtils(IPortalRequestUtils portalRequestUtils) {
 		this.portalRequestUtils = portalRequestUtils;
 	}
-	/*
-     * (non-Javadoc)
-     * @see org.apache.pluto.container.impl.PortletEnvironmentServiceImpl#createPortletSession(javax.portlet.PortletContext, org.apache.pluto.container.PortletWindow, javax.servlet.http.HttpSession)
-     */
-	@Override
+    
+    @Override
 	public PortletSession createPortletSession(PortletContext portletContext, PortletWindow portletWindow, HttpSession session) {
 		// TODO pluto 1.1 PortletEnvironmentService#createPortletSession passed in the request; now use IPortalRequestUtils#getCurrentPortalRequest()?
 		final HttpServletRequest request = portalRequestUtils.getCurrentPortalRequest();
@@ -84,6 +95,161 @@ public class PortletEnvironmentServiceImpl extends org.apache.pluto.container.im
         
 		return new ScopingPortletSessionImpl(portletEntityId, portletContext, portletWindow, session);
 	}
+
+    @Override
+    public ActionRequest createActionRequest(PortletRequestContext requestContext,
+            PortletActionResponseContext responseContext) {
+        
+        return new ExtendedActionRequestImpl(portletPreferencesFactory, requestContext, responseContext);
+    }
+    
+    @Override
+    public EventRequest createEventRequest(PortletRequestContext requestContext,
+            PortletEventResponseContext responseContext, Event event) {
+        
+        return new ExtendedEventRequestImpl(portletPreferencesFactory, requestContext, responseContext, event);
+    }
+    
+    @Override
+    public RenderRequest createRenderRequest(PortletRequestContext requestContext,
+            PortletRenderResponseContext responseContext) {
+        
+        return new ExtendedRenderRequestImpl(portletPreferencesFactory, requestContext, responseContext);
+    }
+    
+    @Override
+    public ResourceRequest createResourceRequest(PortletResourceRequestContext requestContext,
+            PortletResourceResponseContext responseContext) {
+        
+        return new ExtendedResourceRequestImpl(portletPreferencesFactory, requestContext, responseContext);
+    }
     
     
+    @Override
+    public ActionResponse createActionResponse(PortletActionResponseContext responseContext) {
+        return new ActionResponseImpl(responseContext);
+    }
+    
+    @Override
+    public EventResponse createEventResponse(PortletEventResponseContext responseContext) {
+        return new EventResponseImpl(responseContext);
+    }
+    
+    @Override
+    public RenderResponse createRenderResponse(PortletRenderResponseContext responseContext) {
+        return new ExtendedRenderResponseImpl(responseContext);
+    }
+    
+    @Override
+    public ResourceResponse createResourceResponse(PortletResourceResponseContext responseContext, String requestCacheLevel) {
+        return new ExtendedResourceResponseImpl(responseContext, requestCacheLevel);
+    }
+
+    private static final class ExtendedActionRequestImpl extends ActionRequestImpl {
+        private final PortletPreferencesFactory portletPreferencesFactory;
+        private PortletPreferences portletPreferences;
+
+        private ExtendedActionRequestImpl(PortletPreferencesFactory portletPreferencesFactory,
+                PortletRequestContext requestContext,
+                PortletActionResponseContext responseContext) {
+            
+            super(requestContext, responseContext);
+            this.portletPreferencesFactory = portletPreferencesFactory;
+        }
+
+        @Override
+        public PortletPreferences getPreferences() {
+            if (this.portletPreferences == null) {
+                final PortletRequestContext requestContext = this.getRequestContext();
+                this.portletPreferences = portletPreferencesFactory.createPortletPreferences(requestContext, false);
+            }
+            return this.portletPreferences;
+        }
+    }
+
+    private static final class ExtendedEventRequestImpl extends EventRequestImpl {
+        private final PortletPreferencesFactory portletPreferencesFactory;
+        private PortletPreferences portletPreferences;
+
+        private ExtendedEventRequestImpl(PortletPreferencesFactory portletPreferencesFactory,
+                PortletRequestContext requestContext,
+                PortletEventResponseContext responseContext, 
+                Event event) {
+            super(requestContext, responseContext, event);
+            this.portletPreferencesFactory = portletPreferencesFactory;
+        }
+
+        @Override
+        public PortletPreferences getPreferences() {
+            if (this.portletPreferences == null) {
+                final PortletRequestContext requestContext = this.getRequestContext();
+                this.portletPreferences = portletPreferencesFactory.createPortletPreferences(requestContext, false);
+            }
+            return this.portletPreferences;
+        }
+    }
+
+    private static final class ExtendedRenderRequestImpl extends RenderRequestImpl {
+        private final PortletPreferencesFactory portletPreferencesFactory;
+        private PortletPreferences portletPreferences;
+
+        private ExtendedRenderRequestImpl(PortletPreferencesFactory portletPreferencesFactory,
+                PortletRequestContext requestContext,
+                PortletRenderResponseContext responseContext) {
+            super(requestContext, responseContext);
+            this.portletPreferencesFactory = portletPreferencesFactory;
+        }
+
+        @Override
+        public PortletPreferences getPreferences() {
+            if (this.portletPreferences == null) {
+                final PortletRequestContext requestContext = this.getRequestContext();
+                this.portletPreferences = portletPreferencesFactory.createPortletPreferences(requestContext, true);
+            }
+            return this.portletPreferences;
+        }
+    }
+
+    private static final class ExtendedResourceRequestImpl extends ResourceRequestImpl {
+        private final PortletPreferencesFactory portletPreferencesFactory;
+        private PortletPreferences portletPreferences;
+
+        private ExtendedResourceRequestImpl(PortletPreferencesFactory portletPreferencesFactory,
+                PortletResourceRequestContext requestContext,
+                PortletResourceResponseContext responseContext) {
+            super(requestContext, responseContext);
+            this.portletPreferencesFactory = portletPreferencesFactory;
+        }
+
+        @Override
+        public PortletPreferences getPreferences() {
+            if (this.portletPreferences == null) {
+                final PortletRequestContext requestContext = this.getRequestContext();
+                this.portletPreferences = portletPreferencesFactory.createPortletPreferences(requestContext, false);
+            }
+            return this.portletPreferences;
+        }
+    }
+
+    private static final class ExtendedRenderResponseImpl extends RenderResponseImpl {
+        private ExtendedRenderResponseImpl(PortletRenderResponseContext responseContext) {
+            super(responseContext);
+        }
+
+        @Override
+        public String getContentType() {
+            return ((PortletMimeResponseContext)this.getResponseContext()).getContentType();
+        }
+    }
+
+    private static final class ExtendedResourceResponseImpl extends ResourceResponseImpl {
+        private ExtendedResourceResponseImpl(PortletResourceResponseContext responseContext, String requestCacheLevel) {
+            super(responseContext, requestCacheLevel);
+        }
+
+        @Override
+        public String getContentType() {
+            return ((PortletMimeResponseContext)this.getResponseContext()).getContentType();
+        }
+    }
 }

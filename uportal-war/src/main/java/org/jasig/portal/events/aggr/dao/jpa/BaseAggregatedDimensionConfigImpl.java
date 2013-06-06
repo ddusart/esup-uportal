@@ -19,15 +19,14 @@
 
 package org.jasig.portal.events.aggr.dao.jpa;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
 
-import javax.persistence.Column;
 import javax.persistence.MappedSuperclass;
 import javax.persistence.PostPersist;
 import javax.persistence.PostUpdate;
 import javax.persistence.Transient;
-import javax.persistence.Version;
 
 import org.jasig.portal.events.aggr.BaseAggregatedDimensionConfig;
 import org.jasig.portal.utils.IncludeExcludeUtils;
@@ -41,35 +40,29 @@ import org.jasig.portal.utils.IncludeExcludeUtils;
  */
 @MappedSuperclass
 public abstract class BaseAggregatedDimensionConfigImpl<D> implements BaseAggregatedDimensionConfig<D> {
-
-    @Version
-    @Column(name = "ENTITY_VERSION")
-    private final long entityVersion = -1;
+    private static final long serialVersionUID = 1L;
     
     @Transient
-    private final Map<D, Boolean> includedCache = new ConcurrentHashMap<D, Boolean>();
+    private final Map<D, Boolean> includedCache = new HashMap<D, Boolean>();
     
     @PostUpdate
     @PostPersist
     protected void clearIncludedCache() {
         includedCache.clear();
     }
-    
-    @Override
-    public long getVersion() {
-        return this.entityVersion;
-    }
 
     @Override
-    public boolean isIncluded(D dimension) {
+    public final boolean isIncluded(D dimension) {
         final Boolean cachedInclude = includedCache.get(dimension);
         if (cachedInclude != null) {
             return cachedInclude;
         }
         
-        final boolean included = IncludeExcludeUtils.included(dimension, this.getIncluded(), this.getExcluded());
-        includedCache.put(dimension, included);
-        return included;
+        final Set<D> included = this.getIncluded();
+        final Set<D> excluded = this.getExcluded();
+        final boolean include = (!included.isEmpty() || !excluded.isEmpty()) && IncludeExcludeUtils.included(dimension, included, excluded);
+        includedCache.put(dimension, include);
+        return include;
     }
 
     @Override

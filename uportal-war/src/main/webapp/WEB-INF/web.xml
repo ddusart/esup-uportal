@@ -121,7 +121,7 @@
         </init-param>
         <init-param>
             <param-name>proxyCallbackUrl</param-name>
-            <param-value>${environment.build.uportal.protocol}://${environment.build.uportal.server}${environment.build.uportal.context}/CasProxyServlet</param-value>
+            <param-value>${environment.build.uportal.protocol}://${environment.build.real.uportal.server}${environment.build.real.uportal.context}/CasProxyServlet</param-value>
         </init-param>
         <init-param>
             <param-name>proxyReceptorUrl</param-name>
@@ -162,6 +162,10 @@
     <filter>
         <filter-name>OpenEntityManagerInViewFilter</filter-name>
         <filter-class>org.springframework.orm.jpa.support.OpenEntityManagerInViewFilter</filter-class>
+        <init-param>
+            <param-name>persistenceUnitName</param-name>
+            <param-value>PortalDb</param-value>
+        </init-param>
     </filter>
 
     <filter>
@@ -220,6 +224,21 @@
         <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
     </filter>
     
+    <filter>
+        <filter-name>ExceptionLoggingFilter</filter-name>
+        <filter-class>org.jasig.portal.web.ExceptionLoggingFilter</filter-class>
+    </filter>
+    
+    <filter>
+        <filter-name>threadNamingRequestFilter</filter-name>
+        <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+    </filter>
+
+    <filter>
+        <filter-name>remoteCookieCheckFilter</filter-name>
+        <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+    </filter>
+    
     <!-- Useful for testing/debugging remote_user based authn 
     <filter>
         <filter-name>RemoteUserSettingFilter</filter-name>
@@ -238,6 +257,11 @@
     <!-- FILTER ORDER IS VERY IMPORTANT. DO NOT CHANGE ORDER WITHOUT VERY GOOD REASON -->
     
     <filter-mapping>
+        <filter-name>ExceptionLoggingFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+    
+    <filter-mapping>
         <filter-name>CharacterEncodingFilter</filter-name>
         <servlet-name>AuthenticationDispatcherServlet</servlet-name>
         <servlet-name>RenderingDispatcherServlet</servlet-name>
@@ -247,6 +271,11 @@
 
     <filter-mapping>
         <filter-name>OpenEntityManagerInViewFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+    
+    <filter-mapping>
+        <filter-name>threadNamingRequestFilter</filter-name>
         <url-pattern>/*</url-pattern>
     </filter-mapping>
     
@@ -312,6 +341,11 @@
 	 <filter-mapping>
         <filter-name>createPortletCookieFilter</filter-name>
         <servlet-name>RenderingDispatcherServlet</servlet-name>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>remoteCookieCheckFilter</filter-name>
+        <url-pattern>/Login</url-pattern>
     </filter-mapping>
 
     <!-- Supports view rendering -->
@@ -381,10 +415,8 @@
 
     <servlet>
       <servlet-name>AxisServlet</servlet-name>
-      <display-name>Apache-Axis Servlet</display-name>
       <servlet-class>org.apache.axis.transport.http.AxisServlet</servlet-class>
     </servlet>
-
 
 
     <!-- [INSERT JSPC FRAGMENT HERE] -->
@@ -421,6 +453,7 @@
     <servlet-mapping>
         <servlet-name>MVCDispatcherServlet</servlet-name>
         <url-pattern>/api/*</url-pattern>
+        <url-pattern>/EsupMonitor</url-pattern>
     </servlet-mapping>
 
     <servlet-mapping>

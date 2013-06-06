@@ -20,8 +20,6 @@
 package org.jasig.portal.portlet.rendering;
 
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.io.Writer;
 import java.util.Collections;
 import java.util.List;
@@ -44,13 +42,12 @@ import org.apache.pluto.container.PortletContainerException;
 import org.jasig.portal.AuthorizationException;
 import org.jasig.portal.EntityIdentifier;
 import org.jasig.portal.api.portlet.PortletDelegationLocator;
-import org.jasig.portal.events.IPortalEventFactory;
-import org.jasig.portal.portlet.OutputCapturingHttpServletResponseWrapper;
+import org.jasig.portal.events.IPortletExecutionEventFactory;
 import org.jasig.portal.portlet.PortletDispatchException;
+import org.jasig.portal.portlet.container.cache.CacheControlImpl;
 import org.jasig.portal.portlet.container.cache.CacheState;
 import org.jasig.portal.portlet.container.cache.CachedPortletData;
 import org.jasig.portal.portlet.container.cache.CachedPortletResourceData;
-import org.jasig.portal.portlet.container.cache.CachingPortletHttpServletResponseWrapper;
 import org.jasig.portal.portlet.container.cache.CachingPortletOutputHandler;
 import org.jasig.portal.portlet.container.cache.CachingPortletResourceOutputHandler;
 import org.jasig.portal.portlet.container.cache.HeaderSettingCacheControl;
@@ -62,7 +59,6 @@ import org.jasig.portal.portlet.om.IPortletEntity;
 import org.jasig.portal.portlet.om.IPortletWindow;
 import org.jasig.portal.portlet.om.IPortletWindowId;
 import org.jasig.portal.portlet.registry.IPortletWindowRegistry;
-import org.jasig.portal.portlet.rendering.worker.HungWorkerAnalyzer;
 import org.jasig.portal.portlet.session.PortletSessionAdministrativeRequestListener;
 import org.jasig.portal.security.IAuthorizationPrincipal;
 import org.jasig.portal.security.IPerson;
@@ -75,6 +71,7 @@ import org.jasig.portal.url.IUrlSyntaxProvider;
 import org.jasig.portal.url.ParameterMap;
 import org.jasig.portal.utils.web.PortletHttpServletRequestWrapper;
 import org.jasig.portal.utils.web.PortletHttpServletResponseWrapper;
+import org.jasig.portal.utils.web.PortletMimeHttpServletResponseWrapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -93,16 +90,15 @@ public class PortletRendererImpl implements IPortletRenderer {
     private PortletContainer portletContainer;
     private PortletDelegationLocator portletDelegationLocator;
     private IPortletCacheControlService portletCacheControlService;
-    private IPortalEventFactory portalEventFactory;
+    private IPortletExecutionEventFactory portalEventFactory;
     private IUrlSyntaxProvider urlSyntaxProvider;
-    private HungWorkerAnalyzer hungWorkerAnalyzer;
 
     @Autowired
     public void setUrlSyntaxProvider(IUrlSyntaxProvider urlSyntaxProvider) {
         this.urlSyntaxProvider = urlSyntaxProvider;
     }
     @Autowired
-    public void setPortalEventFactory(IPortalEventFactory portalEventFactory) {
+    public void setPortalEventFactory(IPortletExecutionEventFactory portalEventFactory) {
         this.portalEventFactory = portalEventFactory;
     }
     @Autowired
@@ -129,13 +125,9 @@ public class PortletRendererImpl implements IPortletRenderer {
 			IPortletCacheControlService portletCacheControlService) {
 		this.portletCacheControlService = portletCacheControlService;
 	}
-    @Autowired
-    public void setHungWorkerAnalyzer(HungWorkerAnalyzer hungWorkerAnalyzer) {
-        this.hungWorkerAnalyzer = hungWorkerAnalyzer;
-    }
 	
 	
-	/**
+	/*
 	 * PLT 22.1 If the content of a portlet is cached and the portlet is target of request 
      * with an action-type semantic (e.g. an action or event call), the portlet container should discard the cache and
      * invoke the corresponding request handling methods of the portlet like processAction,or processEvent.
@@ -150,7 +142,7 @@ public class PortletRendererImpl implements IPortletRenderer {
     	final IPortletWindow portletWindow = this.portletWindowRegistry.getPortletWindow(httpServletRequest, portletWindowId);
         
         httpServletRequest = this.setupPortletRequest(httpServletRequest);
-        httpServletResponse = this.setupPortletResponse(httpServletResponse);
+        httpServletResponse = PortletHttpServletResponseWrapper.create(httpServletResponse, portletWindow);
         
         //Execute the action, 
         if (this.logger.isDebugEnabled()) {
@@ -182,7 +174,7 @@ public class PortletRendererImpl implements IPortletRenderer {
         return executionTime;
     }
     
-    /**
+    /*
      * PLT 22.1 If the content of a portlet is cached and the portlet is target of request 
      * with an action-type semantic (e.g. an action or event call), the portlet container should discard the cache and
      * invoke the corresponding request handling methods of the portlet like processAction,or processEvent.
@@ -198,7 +190,7 @@ public class PortletRendererImpl implements IPortletRenderer {
         final IPortletWindow portletWindow = this.portletWindowRegistry.getPortletWindow(httpServletRequest, portletWindowId);
         
         httpServletRequest = this.setupPortletRequest(httpServletRequest);
-        httpServletResponse = this.setupPortletResponse(httpServletResponse);
+        httpServletResponse = PortletHttpServletResponseWrapper.create(httpServletResponse, portletWindow);
         
         //Execute the action, 
         if (this.logger.isDebugEnabled()) {
@@ -282,7 +274,7 @@ public class PortletRendererImpl implements IPortletRenderer {
             }
 
             @Override
-            public void publishRenderExecutionEvent(IPortalEventFactory portalEventFactory, PortletRendererImpl source,
+            public void publishRenderExecutionEvent(IPortletExecutionEventFactory portalEventFactory, PortletRendererImpl source,
                     HttpServletRequest request, String fname, long executionTime, Map<String, List<String>> parameters,
                     boolean targeted, boolean cached) {
                 portalEventFactory.publishPortletRenderHeaderExecutionEvent(request,
@@ -314,7 +306,7 @@ public class PortletRendererImpl implements IPortletRenderer {
             }
 
             @Override
-            public void publishRenderExecutionEvent(IPortalEventFactory portalEventFactory, PortletRendererImpl source,
+            public void publishRenderExecutionEvent(IPortletExecutionEventFactory portalEventFactory, PortletRendererImpl source,
                     HttpServletRequest request, String fname, long executionTime, Map<String, List<String>> parameters,
                     boolean targeted, boolean cached) {
                 portalEventFactory.publishPortletRenderExecutionEvent(request,
@@ -350,7 +342,7 @@ public class PortletRendererImpl implements IPortletRenderer {
         /**
          * Public portlet event
          */
-        public abstract void publishRenderExecutionEvent(IPortalEventFactory portalEventFactory,
+        public abstract void publishRenderExecutionEvent(IPortletExecutionEventFactory portalEventFactory,
                 PortletRendererImpl source, HttpServletRequest request, String fname, long executionTime,
                 Map<String, List<String>> parameters, boolean targeted, boolean cached);
 
@@ -403,11 +395,12 @@ public class PortletRendererImpl implements IPortletRenderer {
         final int cacheSizeThreshold = this.portletCacheControlService.getCacheSizeThreshold();
         final CachingPortletOutputHandler cachingPortletOutputHandler = new CachingPortletOutputHandler(portletOutputHandler, cacheSizeThreshold);
 
+        final CacheControl cacheControl = cacheState.getCacheControl();
+        
         //Setup the request and response
         httpServletRequest = this.setupPortletRequest(httpServletRequest);
-        httpServletResponse = this.setupPortletResponse(httpServletResponse);
+        httpServletResponse = PortletMimeHttpServletResponseWrapper.create(httpServletResponse, portletWindow, portletOutputHandler, cacheControl);
         
-        final CacheControl cacheControl = cacheState.getCacheControl();
         httpServletRequest.setAttribute(ATTRIBUTE__PORTLET_CACHE_CONTROL, cacheControl);
         httpServletRequest.setAttribute(ATTRIBUTE__PORTLET_OUTPUT_HANDLER, cachingPortletOutputHandler);
         
@@ -574,20 +567,16 @@ public class PortletRendererImpl implements IPortletRenderer {
         final int cacheSizeThreshold = this.portletCacheControlService.getCacheSizeThreshold();
         final CachingPortletResourceOutputHandler cachingPortletOutputHandler = new CachingPortletResourceOutputHandler(portletOutputHandler, cacheSizeThreshold);
 
-        //Setup the request and response
-        httpServletRequest = this.setupPortletRequest(httpServletRequest);
-        httpServletResponse = this.setupPortletResponse(httpServletResponse);
-        
-        //TODO? CachingPortletHttpServletResponseWrapper responseWrapper = this.setupCachingPortletResponse(httpServletResponse, this.portletCacheControlService.getCacheSizeThreshold());
-        
         CacheControl cacheControl = cacheState.getCacheControl();
         //Wrap the cache control so it immediately sets the caching related response headers
         cacheControl = new HeaderSettingCacheControl(cacheControl, cachingPortletOutputHandler);
+        
+        //Setup the request and response
+        httpServletRequest = this.setupPortletRequest(httpServletRequest);
+        httpServletResponse = PortletResourceHttpServletResponseWrapper.create(httpServletResponse, portletWindow, portletOutputHandler, cacheControl);
+        
         httpServletRequest.setAttribute(ATTRIBUTE__PORTLET_CACHE_CONTROL, cacheControl);
         httpServletRequest.setAttribute(ATTRIBUTE__PORTLET_OUTPUT_HANDLER, cachingPortletOutputHandler);
-        
-        //Add PrintWriter/ServletOutputStream wrapper
-        httpServletResponse = new ResourceHttpServletResponseWrapper(httpServletResponse, cacheControl);
         
         if (this.logger.isDebugEnabled()) {
             this.logger.debug("Executing resource request for window '" + portletWindow + "'");
@@ -757,14 +746,18 @@ public class PortletRendererImpl implements IPortletRenderer {
 			portletWindow.setRenderParameters(new ParameterMap());
 			portletWindow.setExpirationCache(null);
 
-			final StringWriter responseOutput = new StringWriter();
-
 			httpServletRequest = this.setupPortletRequest(httpServletRequest);
-			httpServletResponse = new OutputCapturingHttpServletResponseWrapper(httpServletResponse, new PrintWriter(responseOutput));
+			httpServletResponse = PortletHttpServletResponseWrapper.create(httpServletResponse, portletWindow);
 
 			httpServletRequest.setAttribute(AdministrativeRequestListenerController.DEFAULT_LISTENER_KEY_ATTRIBUTE, "sessionActionListener");
 			httpServletRequest.setAttribute(PortletSessionAdministrativeRequestListener.ACTION, PortletSessionAdministrativeRequestListener.SessionAction.CLEAR);
 			httpServletRequest.setAttribute(PortletSessionAdministrativeRequestListener.SCOPE, PortletSession.PORTLET_SCOPE);
+			
+			//TODO modify PortletContainer.doAdmin to create a specific "admin" req/res object and context so we don't have to fake it with a render req
+			//These are required for a render request to be created and admin requests use a render request under the hood
+			final String characterEncoding = httpServletResponse.getCharacterEncoding();
+            httpServletRequest.setAttribute(ATTRIBUTE__PORTLET_OUTPUT_HANDLER, new RenderPortletOutputHandler(characterEncoding));
+            httpServletRequest.setAttribute(ATTRIBUTE__PORTLET_CACHE_CONTROL, new CacheControlImpl());
 
 			try {
 				this.portletContainer.doAdmin(portletWindow.getPlutoPortletWindow(), httpServletRequest, httpServletResponse);
@@ -778,19 +771,9 @@ public class PortletRendererImpl implements IPortletRenderer {
 			catch (IOException ioe) {
 				throw new PortletDispatchException("The portlet window '" + portletWindow + "' threw an exception while executing admin command to clear session.", portletWindow, ioe);
 			}
-
-			final StringBuffer initResults = responseOutput.getBuffer();
-			if (initResults.length() > 0) {
-				throw new PortletDispatchException("Content was written to response during reset of portlet window '" + portletWindow + "'. Response Content: " + initResults, portletWindow);
-			}
 		} else {
 			logger.debug("ignoring doReset as portletWindowRegistry#getPortletWindow returned a null result for portletWindowId " + portletWindowId);
 		}
-    }
-    
-    @Override
-    public HungWorkerAnalyzer getHungWorkerAnalyzer() {
-        return hungWorkerAnalyzer;
     }
     
     /**
@@ -817,36 +800,10 @@ public class PortletRendererImpl implements IPortletRenderer {
     }
 
     protected HttpServletRequest setupPortletRequest(HttpServletRequest httpServletRequest) {
-        final PortletHttpServletRequestWrapper portletHttpServletRequestWrapper = new PortletHttpServletRequestWrapper(httpServletRequest);
+        final HttpServletRequest portletHttpServletRequestWrapper = PortletHttpServletRequestWrapper.create(httpServletRequest);
         portletHttpServletRequestWrapper.setAttribute(PortletDelegationLocator.PORTLET_DELECATION_LOCATOR_ATTR, this.portletDelegationLocator);
         
         return portletHttpServletRequestWrapper;
-    }
-
-    /**
-     * Wrap the {@link HttpServletResponse} in a {@link PortletHttpServletResponseWrapper}.
-     * @param httpServletResponse
-     * @return the wrapped response
-     */
-    protected HttpServletResponse setupPortletResponse(HttpServletResponse httpServletResponse) {
-        final PortletHttpServletResponseWrapper portletHttpServletResponseWrapper = new PortletHttpServletResponseWrapper(httpServletResponse);
-        return portletHttpServletResponseWrapper;
-    }
-    
-    /**
-     * Wrap the {@link HttpServletResponse} like {@link #setupPortletResponse(HttpServletResponse)}, additionally override
-     * the response's outputstream with a {@link TeeServletOutputStream}.
-     * 
-     * @param httpServletResponse
-     * @param toTee
-     * @param captureHeaders set to true if you expect to capture headers
-     * @return the wrapepd response.
-     * @throws IOException 
-     */
-    protected CachingPortletHttpServletResponseWrapper setupCachingPortletResponse(HttpServletResponse httpServletResponse, int cacheThresholdSize) throws IOException {
-        final CachingPortletHttpServletResponseWrapper portletHttpServletResponseWrapper = 
-                new CachingPortletHttpServletResponseWrapper(httpServletResponse, cacheThresholdSize);
-        return portletHttpServletResponseWrapper;
     }
     
     protected void setupPortletWindow(HttpServletRequest httpServletRequest, IPortletWindow portletWindow, IPortletUrlBuilder portletUrl) {

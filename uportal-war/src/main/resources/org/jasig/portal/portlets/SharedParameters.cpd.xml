@@ -82,7 +82,7 @@
                 <option value="true" label="true"/>
             </single-choice-parameter-input>
         </parameter>
-            
+
         <parameter>
             <name>hideFromDesktop</name>
             <label>hide.in.desktop.theme</label>

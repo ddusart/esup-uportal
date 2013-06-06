@@ -304,10 +304,6 @@ public class PortletAdministrationHelper implements ServletContextAware {
 	    portletDef.getPortletDescriptorKey().setPortletName(form.getPortletName());
 	    portletDef.getPortletDescriptorKey().setFrameworkPortlet(form.isFramework());
 	    
-	    portletDef.addParameter("editable", Boolean.toString(form.isEditable()));
-	    portletDef.addParameter("hasHelp", Boolean.toString(form.isHasHelp()));
-	    portletDef.addParameter("hasAbout", Boolean.toString(form.isHasAbout()));
-	    
 	    Date now = new Date();
 
 		int order = form.getLifecycleState().getOrder();
@@ -407,7 +403,11 @@ public class PortletAdministrationHelper implements ServletContextAware {
 			    portletDef.addParameter(key, value);
 			}
 		}
-		
+
+	    portletDef.addParameter(IPortletDefinition.EDITABLE_PARAM, Boolean.toString(form.isEditable()));
+	    portletDef.addParameter(IPortletDefinition.HAS_HELP_PARAM, Boolean.toString(form.isHasHelp()));
+	    portletDef.addParameter(IPortletDefinition.HAS_ABOUT_PARAM, Boolean.toString(form.isHasAbout()));
+	    
 		for (String key : form.getPortletPreferences().keySet()) {
 			List<String> prefValues = form.getPortletPreferences().get(key).getValue();
 			if (prefValues != null && prefValues.size() > 0) {
@@ -559,28 +559,30 @@ public class PortletAdministrationHelper implements ServletContextAware {
         }
         
         //Remove portlet preferences from the form object that were not part of this request or defined in the CPD
-        final Map<String, StringListAttribute> portletPreferences = form.getPortletPreferences();
-        final Map<String, BooleanAttribute> portletPreferencesOverrides = form.getPortletPreferenceReadOnly();
-        
-        for (final Iterator<Entry<String, StringListAttribute>> portletPreferenceEntryItr = portletPreferences.entrySet().iterator(); portletPreferenceEntryItr.hasNext();) {
-            final Map.Entry<String, StringListAttribute> portletPreferenceEntry = portletPreferenceEntryItr.next();
-            final String key = portletPreferenceEntry.getKey();
-            final StringListAttribute valueAttr = portletPreferenceEntry.getValue();
+        // - do it only if portlet doesn't support configMode
+        if (!this.supportsConfigMode(form)) {
+            final Map<String, StringListAttribute> portletPreferences = form.getPortletPreferences();
+            final Map<String, BooleanAttribute> portletPreferencesOverrides = form.getPortletPreferenceReadOnly();
             
-            if (!preferenceNames.contains(key) || valueAttr == null) {
-                portletPreferenceEntryItr.remove();
-                portletPreferencesOverrides.remove(key);
-            } else {
-                final List<String> values = valueAttr.getValue();
-                for (final Iterator<String> iter = values.iterator(); iter.hasNext();) {
-                    String value = iter.next();
-                    if (value == null) {
-                        iter.remove();
-                    }
-                }
-                if (values.size() == 0) {
+            for (final Iterator<Entry<String, StringListAttribute>> portletPreferenceEntryItr = portletPreferences.entrySet().iterator(); portletPreferenceEntryItr.hasNext();) {
+                final Map.Entry<String, StringListAttribute> portletPreferenceEntry = portletPreferenceEntryItr.next();
+                final String key = portletPreferenceEntry.getKey();
+                final StringListAttribute valueAttr = portletPreferenceEntry.getValue();
+                if (!preferenceNames.contains(key) || valueAttr == null) {
                     portletPreferenceEntryItr.remove();
                     portletPreferencesOverrides.remove(key);
+                } else {
+                    final List<String> values = valueAttr.getValue();
+                    for (final Iterator<String> iter = values.iterator(); iter.hasNext();) {
+                        String value = iter.next();
+                        if (value == null) {
+                            iter.remove();
+                        }
+                    }
+                    if (values.size() == 0) {
+                        portletPreferenceEntryItr.remove();
+                        portletPreferencesOverrides.remove(key);
+                    }
                 }
             }
         }

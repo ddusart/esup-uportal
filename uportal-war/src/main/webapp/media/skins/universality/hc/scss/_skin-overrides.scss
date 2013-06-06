@@ -1,6 +1,8 @@
 //====================================
-// Skin Overrides
+// HIGH CONTRAST SKIN: Overrides
 //====================================
+// This file is written in SASS. To find out how to install SASS to generate CSS visit http://sass-lang.com
+
 // Put any skin-specific overrides here.
 
 .up {
@@ -14,12 +16,12 @@
 	
 	border-width: thick !important;
 	
-	#{$btn-up-selector} {
+	.button, button, input[type='submit'], input[type='button'] {
 		font-size: 18px;
 		padding: 0.3em 12px !important;
 	}
 	
-	#{$btn-up-selector}, #{$btn-hover-selector}, #{$btn-down-selector} {
+	.button, button, input[type='submit'], input[type='button'], .button:hover, .button:focus, a.button:hover, a.button:focus, button:hover, button:focus, input[type='submit']:hover, input[type='submit']:focus, input[type='button']:hover, input[type='button']:focus, .button:active, button:active, input[type='submit']:active, input[type='button']:active {
 		text-shadow: none !important;
 	}
 	
@@ -110,4 +112,7 @@
 		}
 	}
 	
+  // alerts area
+  // none needed currently
+
 }
